@@ -1,65 +1,80 @@
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
+const CONFIG = {
+    charDelayMs: 350,
+    maxLength: 300,
+    minNumberLength: 8,
+    cursor: ' █',
+};
+
+function cleanNumber(raw) {
+    return String(raw || '').replace(/\D/g, '');
+}
+
+function isValidNumber(num) {
+    return num.length >= CONFIG.minNumberLength && num.length <= 15;
+}
+
+async function editMessage(sock, jid, text, key) {
+    try {
+        await sock.sendMessage(jid, { text, edit: key });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function typeToTarget(sock, targetJid, message) {
+    let buffer = '';
+    let lastKey = null;
+
+    for (let i = 0; i < message.length; i++) {
+        buffer += message[i];
+        const isLast = i === message.length - 1;
+        const display = isLast ? buffer : buffer + CONFIG.cursor;
+
+        if (lastKey === null) {
+            const sent = await sock.sendMessage(targetJid, { text: display });
+            lastKey = sent.key;
+        } else {
+            const ok = await editMessage(sock, targetJid, display, lastKey);
+            if (!ok) {
+                const sent = await sock.sendMessage(targetJid, { text: display });
+                lastKey = sent.key;
+            }
+        }
+
+        if (!isLast) await delay(CONFIG.charDelayMs);
+    }
+
+    return lastKey;
+}
+
 module.exports = {
     name: 'type',
     aliases: ['اكتب', 'شبح', 'طباعة'],
-    execute: async ({ sock, msg, text, reply, from }) => {
-        
-        // فصل الرقم عن الرسالة المراد كتابتها
-        // المتوقع: .اكتب 966500000000 الرسالة
-        const firstSpaceIndex = text.indexOf(' ');
-        
-        if (firstSpaceIndex === -1) {
-            return reply('❌ *طريقة الاستخدام خاطئة!*\n*اكتب:* `.اكتب [الرقم] [الرسالة]`\n*مثال:* `.اكتب 966500000000 أهلاً بك`');
-        }
+    execute: async ({ sock, text }) => {
+        const input = String(text || '').trim();
+        const idx = input.indexOf(' ');
+        if (idx === -1) return;
 
-        const rawNumber = text.substring(0, firstSpaceIndex).trim();
-        const secretMessage = text.substring(firstSpaceIndex + 1).trim();
+        const rawNumber = input.substring(0, idx).trim();
+        const secretMessage = input.substring(idx + 1).trim();
+        if (!rawNumber || !secretMessage) return;
 
-        if (!rawNumber || !secretMessage) {
-            return reply('❌ *تأكد من كتابة الرقم والرسالة بشكل صحيح.*');
-        }
+        const targetNumber = cleanNumber(rawNumber);
+        if (!isValidNumber(targetNumber)) return;
+        if (secretMessage.length > CONFIG.maxLength) return;
 
-        // تنظيف الرقم وتجهيزه بصيغة الواتساب
-        const targetNumber = rawNumber.replace(/\D/g, '');
         const targetJid = `${targetNumber}@s.whatsapp.net`;
 
         try {
-            await sock.sendMessage(from, { react: { text: '⌨️', key: msg.key } });
-            await reply(`⏳ *جاري الاتصال بالهدف (+${targetNumber}) وبدء الطباعة الصاروخية...*`);
+            const onCheck = await sock.onWhatsApp(targetJid).catch(() => null);
+            if (!Array.isArray(onCheck) || !onCheck[0]?.exists) return;
 
-            let currentText = ''; 
-            
-            // إرسال أول حرف للرقم المستهدف مع مؤشر الكتابة
-            currentText += secretMessage[0];
-            const sentMsg = await sock.sendMessage(targetJid, { text: currentText + ' █' }); 
-            const msgKey = sentMsg.key;
-
-            // 🚀 تم التعديل إلى 350 ملي ثانية
-            await delay(350);
-
-            // طباعة باقي الحروف للرقم المستهدف
-            for (let i = 1; i < secretMessage.length; i++) {
-                currentText += secretMessage[i];
-                
-                // إظهار المؤشر (█) وإخفائه عند الحرف الأخير
-                const displayIndicator = (i === secretMessage.length - 1) ? '' : ' █';
-                
-                // تعديل الرسالة
-                await sock.sendMessage(targetJid, { text: currentText + displayIndicator, edit: msgKey });
-
-                // 🚀 تم التعديل إلى 350 ملي ثانية بين كل حرف
-                await delay(350);
-            }
-
-            // تقرير النجاح
-            await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
-            await reply('✅ *تـمـت عـمـلـيـة الـطـبـاعـة لـلـهـدف بـنـجـاح بـسـرعـة صـاروخـيـة.*');
-
-        } catch (error) {
-            console.error('❌ خطأ في أمر الآلة الكاتبة:', error.message);
-            await sock.sendMessage(from, { react: { text: '❌', key: msg.key } });
-            reply('❌ *فشلت العملية! تأكد من أن الرقم صحيح ومسجل في الواتساب.*');
+            await typeToTarget(sock, targetJid, secretMessage);
+        } catch {
+            return;
         }
-    }
+    },
 };

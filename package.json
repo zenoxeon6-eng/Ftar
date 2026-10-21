@@ -1,6 +1,6 @@
 {
   "name": "tarzan-bot-pro",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Premium WhatsApp Bot with Multi-Session, AI, and Advanced Media Processing",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "@audd/sdk": "^1.5.4",
+    "@audd/sdk": "^1.5.13",
     "@distube/ytdl-core": "^4.14.4",
     "@google/generative-ai": "^0.14.0",
     "@napi-rs/canvas": "^0.1.50",
@@ -16,7 +16,7 @@
     "awesome-phonenumber": "^6.8.0",
     "axios": "^1.7.2",
     "basic-ftp": "^5.0.5",
-    "bidi-shaper": "^1.0.0",
+    "bidi-shaper": "^0.1.2",
     "brain.js": "^2.0.0-beta.24",
     "canvas": "^2.11.2",
     "chalk": "^4.1.2",
@@ -53,6 +53,7 @@
     "tiktok-scraper-without-watermark": "^1.0.12",
     "translate-google": "^1.5.0",
     "wa-sticker-formatter": "^4.4.4",
+    "youtube-dl-exec": "^3.1.15",
     "yt-dlp-exec": "^1.0.2",
     "yt-search": "^2.11.0",
     "ytdl-core": "^4.11.5",
